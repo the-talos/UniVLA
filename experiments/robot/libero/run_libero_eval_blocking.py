@@ -27,6 +27,7 @@ from experiments.robot.libero.libero_utils import (
 from experiments.robot.openvla_utils import get_processor
 from experiments.robot.robot_utils import (
     DATE_TIME,
+    DEVICE,
     get_latent_action,
     get_image_resize_size,
     get_model,
@@ -170,8 +171,8 @@ def eval_libero(cfg: GenerateConfig) -> None:
 
     # Load action decoder
     action_decoder = ActionDecoder(cfg.window_size)
-    action_decoder.net.load_state_dict(torch.load(cfg.action_decoder_path))
-    action_decoder.eval().cuda()
+    action_decoder.net.load_state_dict(torch.load(cfg.action_decoder_path, map_location="cpu"))
+    action_decoder.eval().to(DEVICE)
 
     # Load model
     model = get_model(cfg)

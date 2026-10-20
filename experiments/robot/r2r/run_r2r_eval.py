@@ -34,6 +34,7 @@ from habitat.utils.visualizations.utils import append_text_to_image
 from experiments.robot.openvla_utils import get_processor
 from experiments.robot.robot_utils import (
     DATE_TIME,
+    DEVICE,
     get_latent_action,
     get_vla_action,
     get_image_resize_size,
@@ -189,8 +190,8 @@ def eval_r2r(cfg: GenerateConfig) -> None:
         # Load action decoder
         if not cfg.use_pretrained_openvla:
             action_decoder = ActionDecoder(cfg.window_size, cfg.add_visual_embed)
-            action_decoder.load_state_dict(torch.load(cfg.action_decoder_path))
-            action_decoder.eval().cuda()
+            action_decoder.load_state_dict(torch.load(cfg.action_decoder_path, map_location="cpu"))
+            action_decoder.eval().to(DEVICE)
 
         # Load model
         model = get_model(cfg)

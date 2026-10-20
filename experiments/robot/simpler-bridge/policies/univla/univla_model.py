@@ -13,6 +13,7 @@ from transformers import AutoConfig, AutoImageProcessor, AutoModelForVision2Seq,
 from prismatic.extern.hf.configuration_prismatic import OpenVLAConfig
 from prismatic.extern.hf.modeling_prismatic import OpenVLAForActionPrediction
 from prismatic.extern.hf.processing_prismatic import PrismaticImageProcessor, PrismaticProcessor
+from prismatic.util.device import attn_implementation, default_device
 import time
 import json
 import torch.nn as nn
@@ -20,7 +21,7 @@ import torch.nn as nn
 ACTION_DIM = 7
 DATE = time.strftime("%Y_%m_%d")
 DATE_TIME = time.strftime("%Y_%m_%d-%H_%M_%S")
-DEVICE = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+DEVICE = default_device()
 np.set_printoptions(formatter={"float": lambda x: "{0:0.3f}".format(x)})
 
 # Initialize system prompt for OpenVLA v0.1.
@@ -44,7 +45,7 @@ def get_vla(pretrained_checkpoint: str):
 
     vla = AutoModelForVision2Seq.from_pretrained(
         pretrained_checkpoint,
-        attn_implementation="flash_attention_2",
+        attn_implementation=attn_implementation(),
         torch_dtype=torch.bfloat16,
         load_in_8bit=False,
         load_in_4bit=False,
@@ -207,14 +208,14 @@ class UniVLABridgeInference:
 
         print(f"*** policy_setup: {policy_setup}, unnorm_key: {unnorm_key} ***")
         # Load model
-        self.vla = get_vla(saved_model_path).cuda()
+        self.vla = get_vla(saved_model_path).to(DEVICE)
         self.processor = get_processor(saved_model_path)
         self.crop_center = True
 
         # Load action decoder
         self.action_decoder = ActionDecoder(window_size = pred_action_horizon)
-        self.action_decoder.net.load_state_dict(torch.load(decoder_path))
-        self.action_decoder.eval().cuda()
+        self.action_decoder.net.load_state_dict(torch.load(decoder_path, map_location="cpu"))
+        self.action_decoder.eval().to(DEVICE)
 
 
         self.image_size = image_size
@@ -293,7 +294,7 @@ class UniVLABridgeInference:
 
         prompt = f"In: What action should the robot take to {task_description.lower()}?\nOut:"
 
-        inputs = self.processor(prompt, image).to("cuda:0", dtype=torch.bfloat16)
+        inputs = self.processor(prompt, image).to(DEVICE, dtype=torch.bfloat16)
         latent_action, visual_embed, generated_ids = self.vla.predict_latent_action(**inputs, unnorm_key=self.unnorm_key, do_sample=True, temperature=0.75, top_p = 0.9)
 
         action_norm_stats = self.vla.get_action_stats(self.unnorm_key)

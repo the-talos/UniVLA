@@ -169,6 +169,19 @@ ninja --version; echo $?  # Verify Ninja --> should return exit code "0"
 pip install "flash-attn==2.5.5" --no-build-isolation
 ```
 
+### How to run the same on Intel's XPU
+
+Inference runs on Intel GPUs through PyTorch XPU. In step 2, install the XPU build of PyTorch instead of the CUDA
+one, run `pip install -e .` after it, and skip the Flash Attention 2 step (on XPU the model loads with PyTorch SDPA):
+
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/xpu
+```
+
+The device is detected automatically (XPU, then CUDA, then CPU). The evaluation and deployment commands below stay the
+same, with `ZE_AFFINITY_MASK=0` in place of `CUDA_VISIBLE_DEVICES=0` to pick the card. The checkpoints load in
+bfloat16 as before. The simulators (LIBERO, CALVIN, SimplerEnv) and the Flash Attention 2 path remain CUDA-only.
+
 ## :fire: Training Recipe
 
 ### :zero: Data Preparation
